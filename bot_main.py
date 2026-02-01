@@ -218,3 +218,12 @@ def main():
     app.add_handler(CommandHandler("list", list_cmd))
     app.add_handler(CommandHandler("delete", delete_cmd))
     app
+
+def main():
+    init_db()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    # Add all CommandHandlers here
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
