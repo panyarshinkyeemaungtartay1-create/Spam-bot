@@ -1,121 +1,336 @@
-from telegram import Update, Chat
-from telegram.ext import Application, CommandHandler, ContextTypes
-import asyncio
+# bot_main.py
 import logging
+import asyncio
+import sqlite3
+from contextlib import closing
+from typing import List
+from telegram import Update, Chat, ParseMode
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# --- Bot Token & Owner ID ---
-TOKEN = "8561696503:AAGhIRdmo2PQCdOSWjCR_96qOeAPb7KoVJw"
+# ---------- Config ----------
+BOT_TOKEN = "8149753284:AAGB1SU53oPrAafyKhcla8oeP9rCZ_8DV3M"
 OWNER_ID = 8566689610
+DB_PATH = "bot_data.db"
 
-# --- Logging setup ---
+# ---------- Logging ----------
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(name)
 
-# --- Global variables ---
-spam_messages = [
-    "မင်းက စောက်သုံးမကျတဲ့သူပါ။",
-    "{name} မင်းအမေဖာသယ်မသေတာကိုလာလာမတင်ပြနဲ့စောက်ဖြစ်မရှိတဲ့ဟာလေး ✌️😜",
-    "{name} မင်းမာ ‌စောက်သုံးမကျတဲ့ဦးနှောက်ကြီးရှိနေသရွှေ့တော့မင်းကဘယ်နေရာမှာမဘောင်ဝင်ဘူး 🫵😂",
-    "{name} မင်းရဲ့ခေါင်းကဘယ်နေရာမာသုံးစားလို့ငါရှေ့မာလာပီးခစားပြနေတာလည်းစောက်ဝက် 🤨",
-    "{name} မင်းစောက်သုံးမကျတာလူသိကုန်ပီမင်းရဲ့ brain ကို Update လေးလုပ်လိုက် 🤣🤣",
-    "{name} ငါကဆရာနတ်စောင်းရဲ့လက်သုံးတော်လေမင်းထက်အဆတစ်ရာကြမ်းတယ်‌‌ကလေး 🥳🥳",
-    "{name} မင်းရဲ့စောက်သုံးမကျတဲ့ brain ကိုဘယ်လိုတောင်ပြုပြင်ပေးရပ့မလဲနော 🤪🤪",
-    "{name} ဟိတ်ဝက်မင်းကဖာသယ်မသားသေးသေး‌လေးဆိုဟုတ်လားမင်းစောက်ကြောင်းကလဲမလှဘူးကွာ 🙀",
-    "{name} ငါရိုက်ရင်ခွေးမျိုးကန်းသွားမယ်နောမင်းရဲ့စောက်သုံးမကျတဲ့အကျင့်စရိုက်လေကိုပြင်အုန်းညီလေး 🤓🤌",
-    "{name} ဖာတန်းမာဈေးမရလို့ Telegram မာလာပီးရှာစားနေတာဆိုစောက်သုံးလဲမကျဘူး 😭",
-    "{name} မင်းကိုစောက်သုံးကျသွားအောင်ပြင်ပေးမယ်လေ အ ဖေလေးတော့ခေါ်ညီလေး",
-    "{name} မင်းစောက်ခွက်ကိုသုတ်ရည်နဲ့ဒဲ့ဖြန်းပေးမယ် အရင်ဆုံးသတ်ထွက်အောင်မင်းညီမကိုငါ့ဆီလွတ် 👌",
-    "{name} မျိုးမစစ်ကိုက်လေမျိုးမစစ်နာနာကိုက်ဟ ပျော့တယ်အားထည့်ကိုက်စောက်ခွေး",
-    "{name} သွားကြိုးနေတာလားမင်းစောက်သုံးလဲမကျဘူးကွာ လမ်ဘေးခွေးတောင်မင်းထက်သာတယ်",
-]
+# ---------- Database helpers ----------
+def init_db():
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS admins (
+            user_id INTEGER PRIMARY KEY
+        )""")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS saved_texts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL
+        )""")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS running_tasks (
+            chat_id INTEGER PRIMARY KEY,
+            is_running INTEGER DEFAULT 0
+        )""")
+        conn.commit()
 
-spamming = {}
-admins = set()
-gifted_users = set()
-known_groups = set()
+def add_admin(user_id: int):
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("INSERT OR IGNORE INTO admins(user_id) VALUES(?)", (user_id,))
+        conn.commit()
 
-# --- Helper functions ---
-def is_owner(user_id: int) -> bool:
-    return user_id == OWNER_ID
+def remove_admin(user_id: int):
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM admins WHERE user_id=?", (user_id,))
+        conn.commit()
 
 def is_admin(user_id: int) -> bool:
-    return user_id in admins or is_owner(user_id)
+    if user_id == OWNER_ID:
+        return True
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM admins WHERE user_id=?", (user_id,))
+        return cur.fetchone() is not None
 
-def is_gifted(user_id: int) -> bool:
-    return user_id in gifted_users or is_owner(user_id)
+def save_text_append(text: str):
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO saved_texts(text) VALUES(?)", (text,))
+        conn.commit()
 
-# --- Commands ---
-async def attack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("မင်း Admin မဟုတ်ပါ")
-        return
-    if not context.args:
-        await update.message.reply_text("အသုံးပြုနည်း: /attack <user>")
-        return
-    target = context.args[0]
-    chat_id = update.effective_chat.id
-    spamming[chat_id] = True
-    await update.message.reply_text(f"{target} ကို spam လုပ်နေပါသည်")
-    while spamming.get(chat_id, False):
-        for msg in spam_messages:
-            await update.message.reply_text(msg.replace("{name}", target))
-        await asyncio.sleep(1)
+def list_saved_texts() -> List[str]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, text FROM saved_texts ORDER BY id")
+        return [f"{row[0]}: {row[1]}" for row in cur.fetchall()]
 
-async def flash(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("မင်း Admin မဟုတ်ပါ")
-        return
-    if not context.args:
-        await update.message.reply_text("အသုံးပြုနည်း: /flash <user>")
-        return
-    target = context.args[0]
-    chat_id = update.effective_chat.id
-    spamming[chat_id] = True
-    await update.message.reply_text(f"{target} ကို အမြန် spam လုပ်နေပါသည်")
-    while spamming.get(chat_id, False):
-        for msg in spam_messages:
-            await update.message.reply_text(msg.replace("{name}", target))
-        await asyncio.sleep(0.5)
+def delete_saved_text(idx: int):
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM saved_texts WHERE id=?", (idx,))
+        conn.commit()
 
-async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    spamming[chat_id] = False
-    await update.message.reply_text("Spam ကို ရပ်လိုက်ပါပြီ")
+def set_running(chat_id: int, running: bool):
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("INSERT OR REPLACE INTO running_tasks(chat_id, is_running) VALUES(?, ?)", (chat_id, 1 if running else 0))
+        conn.commit()
 
-async def save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not is_owner(update.effective_user.id):
-        await update.message.reply_text("မင်း Owner မဟုတ်ပါ")
-        return
-    if not context.args:
-        await update.message.reply_text("အသုံးပြုနည်း: /save <message>")
-        return
-    msg = " ".join(context.args)
-    spam_messages.append(msg)
-    await update.message.reply_text(f"Spam စာသားအသစ် သိမ်းပြီးပါပြီ: {msg}")
+def is_running(chat_id: int) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT is_running FROM running_tasks WHERE chat_id=?", (chat_id,))
+        r = cur.fetchone()
+        return bool(r and r[0] == 1)
 
-async def list_messages(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not is_owner(update.effective_user.id):
-        await update.message.reply_text("မင်း Owner မဟုတ်ပါ")
+# ---------- Utilities ----------
+def mention_user_html(user_id: int, name: str) -> str:
+    return f'<a href="tg://user?id={user_id}">{name}</a>'
+
+async def get_official_name(context: ContextTypes.DEFAULT_TYPE, chat: Chat, user_id: int) -> str:
+    try:
+        member = await context.bot.get_chat_member(chat.id, user_id)
+        name = member.user.full_name
+        return name
+    except Exception:
+        return str(user_id)
+
+# ---------- Command checks ----------
+
+def require_owner_or_admin(func):
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = update.effective_user.id
+        if not is_admin(user_id):
+            await update.message.reply_text("သင့်မှာ permission မရှိပါ။")
+            return
+        return await func(update, context)
+    return wrapper
+
+def require_owner(func):
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = update.effective_user.id
+        if user_id != OWNER_ID:
+            await update.message.reply_text("Owner permission လိုအပ်သည်။")
+            return
+        return await func(update, context)
+    return wrapper
+
+# ---------- Commands ----------
+async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Bot အဆင်သင့်ဖြစ်ပါပြီ။")
+
+@require_owner_or_admin
+async def attack_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: /attack <user_id or reply>
+    chat = update.effective_chat
+    target_id = None
+    if update.message.reply_to_message:
+        target_id = update.message.reply_to_message.from_user.id
+    elif context.args:
+        try:
+            target_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("ID မှန်ကန်စွာထည့်ပါ။")
+            return
+    else:
+        await update.message.reply_text("Reply သို့မဟုတ် user id ထည့်ပါ။")
         return
-    if not spam_messages:
-        await update.message.reply_text("Spam စာသား မရှိသေးပါ")
+
+    name = await get_official_name(context, chat, target_id)
+    mention = mention_user_html(target_id, name)
+    await update.message.reply_html(f"Attack: {mention}")
+
+@require_owner_or_admin
+async def flash_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: /flash <user_id or reply> [count]
+    chat = update.effective_chat
+    target_id = None
+    if update.message.reply_to_message:
+        target_id = update.message.reply_to_message.from_user.id
+    elif context.args:
+        try:
+            target_id = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("ID မှန်ကန်စွာထည့်ပါ။")
+            return
+    else:
+        await update.message.reply_text("Reply သို့မဟုတ် user id ထည့်ပါ။")
         return
-    text = "Spam စာသားစာရင်း:\n" + "\n".join(spam_messages)
+
+    count = 10
+    if len(context.args) >= 2:
+        try:
+            count = int(context.args[1])
+        except Exception:
+            pass
+
+    name = await get_official_name(context, chat, target_id)
+    set_running(chat.id, True)
+    try:
+        for i in range(count):
+            if not is_running(chat.id):
+                break
+            mention = mention_user_html(target_id, name)
+            await context.bot.send_message(chat.id, mention, parse_mode=ParseMode.HTML)
+            await asyncio.sleep(0.1)
+    except Exception as e:
+        logger.exception("flash error")
+        await update.message.reply_text("Flash မှာ error ဖြစ်ခဲ့သည်။")
+    finally:
+        set_running(chat.id, False)
+
+@require_owner_or_admin
+async def stop_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Owner or admin can stop running mention loops in this chat
+    set_running(update.effective_chat.id, False)
+    await update.message.reply_text("Stopped.")
+
+@require_owner
+async def save_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: /save <text>  OR reply with /save
+    if update.message.reply_to_message:
+        text = update.message.reply_to_message.text or update.message.reply_to_message.caption or ""
+    else:
+        text = " ".join(context.args)
+    if not text:
+        await update.message.reply_text("ထည့်ရန်စာသားမရှိပါ။")
+        return
+    save_text_append(text)
+    await update.message.reply_text("Saved.")
+
+@require_owner
+async def list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    items = list_saved_texts()
+    if not items:
+        await update.message.reply_text("Saved list is empty.")
+        return
+    await update.message.reply_text("\n".join(items))
+
+@require_owner_or_admin
+async def delete_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: reply to message then /delete  OR /delete <message_id>
+    if update.message.reply_to_message:
+        try:
+            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.reply_to_message.message_id)
+            await update.message.reply_text("Message deleted.")
+        except Exception as e:
+            logger.exception("delete error")
+            await update.message.reply_text("Cannot delete message. Make sure bot has delete permission.")
+    elif context.args:
+        try:
+            mid = int(context.args[0])
+            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=mid)
+            await update.message.reply_text("Message deleted.")
+        except Exception:
+            await update.message.reply_text("Failed to delete message.")
+    else:
+        await update.message.reply_text("Reply to a message or provide message id.")
+
+@require_owner
+async def setadmin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: /setadmin <user_id> or reply
+    if update.message.reply_to_message:
+        uid = update.message.reply_to_message.from_user.id
+    elif context.args:
+        try:
+            uid = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("ID မှန်ကန်စွာထည့်ပါ။")
+            return
+    else:
+        await update.message.reply_text("Reply သို့မဟုတ် user id ထည့်ပါ။")
+        return
+    add_admin(uid)
+    await update.message.reply_text(f"Added admin: {uid}")
+
+@require_owner
+async def deladmin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: /deladmin <user_id> or reply
+    if update.message.reply_to_message:
+        uid = update.message.reply_to_message.from_user.id
+    elif context.args:
+        try:
+            uid = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("ID မှန်ကန်စွာထည့်ပါ။")
+            return
+    else:
+        await update.message.reply_text("Reply သို့မဟုတ် user id ထည့်ပါ။")
+        return
+    remove_admin(uid)
+    await update.message.reply_text(f"Removed admin: {uid}")
+
+async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: /id or reply
+    if update.message.reply_to_message:
+        user = update.message.reply_to_message.from_user
+    elif context.args:
+        try:
+            uid = int(context.args[0])
+            user = await context.bot.get_chat(uid)
+        except Exception:
+            await update.message.reply_text("Cannot find user.")
+            return
+    else:
+        user = update.effective_user
+
+    # bot permissions in chat
+    chat = update.effective_chat
+    try:
+        member = await context.bot.get_chat_member(chat.id, context.bot.id)
+        bot_status = member.status
+    except Exception:
+        bot_status = "unknown"
+
+    text = f"User: {user.full_name}\nID: {user.id}\nBot status in this chat: {bot_status}"
     await update.message.reply_text(text)
 
-# --- Main ---
-def main() -> None:
-    application = Application.builder().token(TOKEN).build()
+@require_owner
+async def posting_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # usage: reply to a message with /posting
+    if not update.message.reply_to_message:
+        await update.message.reply_text("Reply to the post you want to forward.")
+        return
+    # find groups where bot is admin? We cannot list all groups easily.
+    # We'll forward to groups listed in admins' groups or to a configured list.
+    await update.message.reply_text("Posting: forwarding to configured groups is not implemented in this simple example. Add your group list in code or DB.")
 
-    application.add_handler(CommandHandler("attack", attack))
-    application.add_handler(CommandHandler("flash", flash))
-    application.add_handler(CommandHandler("stop", stop))
-    application.add_handler(CommandHandler("save", save))
-    application.add_handler(CommandHandler("list", list_messages))
+# ---------- Error handler ----------
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
+    try:
+        if isinstance(update, Update) and update.effective_message:
+            await update.effective_message.reply_text("Internal error occurred.")
+    except Exception:
+        pass
 
-    application.run_polling()
+# ---------- Main ----------
+def main():
+    init_db()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-if __name__ == "__main__":
+    app.add_handler(CommandHandler("start", start_cmd))
+    app.add_handler(CommandHandler("attack", attack_cmd))
+    app.add_handler(CommandHandler("flash", flash_cmd))
+    app.add_handler(CommandHandler("stop", stop_cmd))
+    app.add_handler(CommandHandler("save", save_cmd))
+    app.add_handler(CommandHandler("list", list_cmd))
+    app.add_handler(CommandHandler("delete", delete_cmd))
+    app.add_handler(CommandHandler("setadmin", setadmin_cmd))
+    app.add_handler(CommandHandler("deladmin", deladmin_cmd))
+    app.add_handler(CommandHandler("id", id_cmd))
+    app.add_handler(CommandHandler("posting", posting_cmd))
+
+    app.add_error_handler(error_handler)
+
+    logger.info("Bot starting...")
+    app.run_polling()
+
+if name == "main":
     main()
