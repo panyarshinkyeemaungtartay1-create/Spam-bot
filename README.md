@@ -1,25 +1,16 @@
-# Spam Bot
+# Telegram Group Mention Bot
 
-Telegram Bot for automated mention spam with admin/owner permission system.
+Telegram group bot with commands like `/attack`, `/flash`, `/save`, `/list`, `/stop`, `/delete`, `/id`, `/setadmin`, `/deladmin`, `/posting`.
 
----
+## Features
+- **Owner Commands**: `/attack`, `/flash`, `/save`, `/list`, `/stop`, `/delete`, `/id`, `/setadmin`, `/deladmin`, `/posting`
+- **Admin Commands**: `/attack`, `/flash`, `/stop`, `/delete`, `/id`
+- **Normal Users**: No permission
+- **Persistent Storage**: SQLite (`bot_data.db`)
+- **Deploy Ready**: GitHub + Render
 
-## 🚀 Features
-- `/attack <user>` → Admins can start spam loop on a target user
-- `/flash <user>` → Similar to attack, starts spam loop
-- `/stop` → Stop spam loop in the current chat
-- `/save <message>` → Owner can save new spam message
-- `/gift <user>` → Owner can authorize a user
-- `/id <user>` → Get user ID
-- `/post <message>` → Owner can broadcast to known groups
-- `/setadmin <user>` → Owner can add admin
-- `/deladmin <user>` → Owner can remove admin
-
----
-
-## 📦 Requirements
-
-Install dependencies with:
-
-```bash
-pip install -r requirements.txt
+## Requirements
+- Python 3.10+
+- Dependencies:
+  ```text
+  python-telegram-bot==20.6
