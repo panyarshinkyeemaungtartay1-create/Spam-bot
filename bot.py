@@ -20,9 +20,19 @@ running_tasks = {}  # chat_id -> asyncio.Task
 
 # Messages list
 MESSAGES = [
-    " {name} မင်းအမေဖာသယ်မသေတာကို...",
-    " {name} မင်းမာ ‌စောက်သုံးမကျတဲ့...",
-    # ... (အခြား message list မပြင်ထား)
+    " {name} မင်းအမေဖာသယ်မသေတာကိုလာလာမတင်ပြနဲ့စောက်ဖြစ်မရှိတဲ့ဟာလေး ✌️😜 ",
+    " {name} မင်းမာ ‌စောက်သုံးမကျတဲ့ဦးနှောက်ကြီးရှိနေသရွှေ့တော့မင်းကဘယ်နေရာမှာမဘောင်ဝင်ဘူး 🫵😂 ",
+    " {name} မင်းရဲ့ခေါင်းကဘယ်နေရာမာသုံးစားလို့ငါရှေ့မာလာပီးခစားပြနေတာလည်းစောက်ဝက် 🤨 ",
+    " {name} မင်းစောက်သုံးမကျတာလူသိကုန်ပီမင်းရဲ့ brain ကို Update လေးလုပ်လိုက် 🤣🤣 ",
+    " {name} ငါကဆရာနတ်စောင်းရဲ့လက်သုံးတော်လေမင်းထက်အဆတစ်ရာကြမ်းတယ်‌‌ကလေး 🥳🥳 ",
+    "{name} မင်းရဲ့စောက်သုံးမကျတဲ့ brain ကိုဘယ်လိုတောင်ပြုပြင်ပေးရပ့မလဲနော 🤪🤪",
+    " {name} ဟိတ်ဝက်မင်းကဖာသယ်မသားသေးသေး‌လေးဆိုဟုတ်လားမင်းစောက်ကြောင်းကလဲမလှဘူးကွာ 🙀 ",
+    " {name} ငါရိုက်ရင်ခွေးမျိုးကန်းသွားမယ်နောမင်းရဲ့စောက်သုံးမကျတဲ့အကျင့်စရိုက်လေကိုပြင်အုန်းညီလေး 🤓🤌 ",
+    " {name} ဖာတန်းမာဈေးမရလို့ Telegram မာလာပီးရှာစားနေတာဆိုစောက်သုံးလဲမကျဘူး 😭 ",
+    " {name} မင်းကိုစောက်သုံးကျသွားအောင်ပြင်ပေးမယ်လေ အ ဖေလေးတော့ခေါ်ညီလေး ",
+    " {name} မင်းစောက်ခွက်ကိုသုတ်ရည်နဲ့ဒဲ့ဖြန်းပေးမယ် အရင်ဆုံးသတ်ထွက်အောင်မင်းညီမကိုငါ့ဆီလွတ် 👌 ",
+    " {name} မျိုးမစစ်ကိုက်လေမျိုးမစစ်နာနာကိုက်ဟ ပျော့တယ်အားထည့်ကိုက်စောက်ခွေး ",
+    " {name} သွားကြိုးနေတာလားမင်းစောက်သုံးလဲမကျဘူးကွာ လမ်ဘေးခွေးတောင်မင်းထက်သာတယ် ",
 ]
 
 # Logging (FIXED)
@@ -151,41 +161,4 @@ async def attack(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     mention_text = f'<a href="tg://user?id={target_id}">{display}</a>'
     if chat_id in running_tasks and not running_tasks[chat_id].done():
-        await update.message.reply_text("⚠️ A loop is already running. Use /stop first.")
-        return
-    task = asyncio.create_task(start_spam_loop(context, chat_id, mention_text, 0.2))
-    running_tasks[chat_id] = task
-    await update.message.reply_text(f"▶️ Attack started on {display}.")
-
-async def flash(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if not is_admin(user_id):
-        await update.message.reply_text("❌ You don't have permission to use /flash.")
-        return
-    chat_id = update.effective_chat.id
-    await ensure_known_group(context, chat_id)
-    target_arg = context.args[0] if len(context.args) >= 1 else ""
-    target_id, display = await resolve_target_id(context, target_arg, update)
-    if not target_id:
-        await update.message.reply_text("❌ Could not resolve target.")
-        return
-    mention_text = f'<a href="tg://user?id={target_id}">{display}</a>'
-    # FIXED indentation
-    if chat_id in running_tasks and not running_tasks[chat_id].done():
-        await update.message.reply_text("⚠️ A loop is already running. Use /stop first.")
-        return
-    task = asyncio.create_task(start_spam_loop(context, chat_id, mention_text, 0.2))
-    running_tasks[chat_id] = task
-    await update.message.reply_text(f"▶️ Flash started on {display}.")
-
-async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
-    if not is_admin(user_id):
-        await update.message.reply_text("❌ You don't have permission to use /stop.")
-        return
-    task = running_tasks.get(chat_id)
-    if task and not task.done():
-        task.cancel()
-        await asyncio.sleep(0.1)
-        running_tasks.pop
+        await update.message.reply_text("⚠
