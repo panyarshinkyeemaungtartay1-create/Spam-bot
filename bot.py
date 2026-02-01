@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 # --- Bot Token & Owner ID ---
-TOKEN = "8569459914:AAHt1xpr48Y3AkqZ80oMKi2To3cXnSQ7hyY"
+TOKEN = "8561696503:AAGhIRdmo2PQCdOSWjCR_96qOeAPb7KoVJw"
 OWNER_ID = 8566689610
 
 # --- Logging setup ---
