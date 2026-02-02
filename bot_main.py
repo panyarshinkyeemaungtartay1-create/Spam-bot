@@ -10,7 +10,15 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # ---------- Config ----------
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID"))
+OWNER_ID = os.getenv("OWNER_ID")
+
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN is not set")
+
+if not OWNER_ID:
+    raise RuntimeError("OWNER_ID is not set")
+
+OWNER_ID = int(OWNER_ID)
 DB_PATH = "bot_data.db"
 # ---------- Logging ----------
 logging.basicConfig(
