@@ -13,5 +13,4 @@ Telegram group bot with commands like `/attack`, `/flash`, `/save`, `/list`, `/s
 - Python 3.10+
 - Dependencies:
   ```text
-  python-telegram-bot==20.7
   python-telegram-bot==13.15
