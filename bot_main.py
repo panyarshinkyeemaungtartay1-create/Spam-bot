@@ -207,9 +207,13 @@ async def posting_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Posting feature requires group list configuration.")
 
 # ---------- Main ----------
+from telegram.ext import Application, CommandHandler
+
 def main():
     init_db()
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app = Application.builder().token(BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(CommandHandler("attack", attack_cmd))
     app.add_handler(CommandHandler("flash", flash_cmd))
@@ -217,13 +221,13 @@ def main():
     app.add_handler(CommandHandler("save", save_cmd))
     app.add_handler(CommandHandler("list", list_cmd))
     app.add_handler(CommandHandler("delete", delete_cmd))
-    app
+    app.add_handler(CommandHandler("setadmin", setadmin_cmd))
+    app.add_handler(CommandHandler("deladmin", deladmin_cmd))
+    app.add_handler(CommandHandler("id", id_cmd))
+    app.add_handler(CommandHandler("posting", posting_cmd))
 
-def main():
-    init_db()
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    # Add all CommandHandlers here
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
