@@ -8,10 +8,9 @@ from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # ---------- Config ----------
-BOT_TOKEN = "8149753284:AAGB1SU53oPrAafyKhcla8oeP9rCZ_8DV3M"
-OWNER_ID = 8566689610
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+OWNER_ID = int(os.getenv("OWNER_ID"))
 DB_PATH = "bot_data.db"
-
 # ---------- Logging ----------
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
