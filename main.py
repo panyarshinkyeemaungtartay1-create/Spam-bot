@@ -35,13 +35,8 @@ conn.commit()
 # Bot Client
 # ==========================
 
-async def main():
-    bot = TelegramClient("bot", API_ID, API_HASH)
-    await bot.start(bot_token=BOT_TOKEN)
-
-    print("Bot Started...")
-
-    await bot.run_until_disconnected()
+# Create bot globally
+bot = TelegramClient("bot", API_ID, API_HASH)
 
 # ==========================
 # Permission Check
@@ -1113,5 +1108,10 @@ load_rsave()
 # ==========================
 # Run Bot
 # ==========================
+async def main():
+    await bot.start(bot_token=BOT_TOKEN)
+    print("Bot Started...")
+    await bot.run_until_disconnected()
+
 if __name__ == "__main__":
     asyncio.run(main())
