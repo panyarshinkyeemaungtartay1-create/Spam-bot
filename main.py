@@ -1106,5 +1106,12 @@ load_rsave()
 # ==========================
 # Run Bot
 # ==========================
-print("Bot is running...")
-bot.run_until_disconnected()
+client = TelegramClient("bot", API_ID, API_HASH)
+
+async def main():
+    await client.start(bot_token=BOT_TOKEN)
+    print("Bot Started Successfully 🚀")
+    await client.run_until_disconnected()
+
+if __name__ == "__main__":
+    asyncio.run(main())
